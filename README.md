@@ -18,3 +18,8 @@ Your company is creating an Instagram clone called Udagram. Developers pushed th
 
 ### Architecture Diagram
 ![Architecture Diagram](images/architecture-diagram.jpg)
+
+### Build the environment
+```bash
+make generate_bastion_key build_stack
+```
