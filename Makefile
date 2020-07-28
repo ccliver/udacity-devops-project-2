@@ -14,6 +14,10 @@ AWS_CLI_OPTIONS := --stack-name ${STACK_NAME} \
 --region ${REGION} \
 --template-body file:///work/cloudformation/stack.yml
 
+generate_bastion_key: ## Deploy all infrastructure with Cloudformation and deploy site
+	@docker run ${DOCKER_OPTIONS} ccliver/awscli aws ec2 create-key-pair --region ${REGION} --key-name bastion-key | jq -r .KeyMaterial > id_rsa
+	@chmod 400 id_rsa
+
 build_stack: ## Deploy all infrastructure with Cloudformation and deploy site
 	@docker run ${DOCKER_OPTIONS} ccliver/awscli aws cloudformation create-stack ${AWS_CLI_OPTIONS}
 
