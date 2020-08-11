@@ -1,7 +1,19 @@
-#Parameters:
-# whatever you consider a changing value, put it as a parameter instead of hard-coding it into your script
-Resources:
+Parameters:
+  BastionAllowedIP:
+    Type: String
+    Description: The CIDR that will be granted SSH access to the bastion
 
+  InstanceType:
+    Type: String
+    Description: The instance type for app servers
+    Default: t2.medium
+
+  AMI:
+    Type: String
+    Description: App instance AMI
+    Default: ami-02354e95b39ca8dec # Amazon Linux 2 us-east-1
+
+Resources:
   #
   # VPC
   #
@@ -32,7 +44,7 @@ Resources:
       CidrBlock: 10.0.1.0/24
       AvailabilityZone:
         Fn::Select:
-          - 0
+          - 1
           - Fn::GetAZs: ""
       Tags:
       - Key: Name
@@ -58,7 +70,7 @@ Resources:
       CidrBlock: 10.0.3.0/24
       AvailabilityZone:
         Fn::Select:
-          - 0
+          - 1
           - Fn::GetAZs: ""
       Tags:
       - Key: Name
@@ -169,11 +181,11 @@ Resources:
       GroupDescription: Bastion instance security group
       GroupName: bastion-sg
       VpcId: !Ref VPC
-      SecurityGroupIngress: # TODO: Lock this down
+      SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: !Join ['', [!Ref BastionAllowedIP, '/32']]
       SecurityGroupEgress:
         - IpProtocol: -1
           FromPort: -1
@@ -183,7 +195,7 @@ Resources:
   Bastion:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ""
+      ImageId: "ami-09d8b5222f2b93bf0"
       KeyName: bastion-key
       InstanceType: t3.small
       NetworkInterfaces:
@@ -192,5 +204,117 @@ Resources:
           GroupSet:
             - Ref: "BastionSG"
           SubnetId: !Ref PublicOne
-#  Outputs: 
-  #Bonus points for useful outputs!
+      Tags:
+        - Key: "Name"
+          Value: "bastion"
+
+  #
+  # S3
+  #
+  AppBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'udacity-project-2-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+    DeletionPolicy: Delete
+
+  #
+  # ALB
+  #
+  ALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB security group
+      GroupName: lb-sg
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: "0.0.0.0/0"
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: "ipv4"
+      Name: "udagram-lb"
+      Scheme: "internet-facing"
+      SecurityGroups:
+        - !Ref ALBSG
+      Subnets:
+        - !Ref PublicOne
+        - !Ref PublicTwo
+      Type: "application"
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Name: app-trgt-grp
+
+  #
+  # ASG
+  #
+  AppRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+
+  AppRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: root
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action: "s3:*"
+          Resource: !Join
+            - ''
+            - - !GetAtt AppBucket.Arn
+              - "/*"
+      Roles:
+      - !Ref AppRole
+
+  AppInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - !Ref AppRole
+
+  LaunchConfig: 
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties: 
+      ImageId:
+        Ref: AMI
+      InstanceType: 
+        Ref: InstanceType
+      IamInstanceProfile: 
+        Ref: AppInstanceProfile
+
+  ASG:
+    Type: AWS::Autoscaling::AutoScalingGroup
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+
+Outputs:
+  BastionIP:
+    Value: !GetAtt Bastion.PublicIp

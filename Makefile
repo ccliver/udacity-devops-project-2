@@ -12,7 +12,9 @@ DOCKER_OPTIONS := -v ${PWD}:/work \
 -e MY_IP=${MY_IP}
 AWS_CLI_OPTIONS := --stack-name ${STACK_NAME} \
 --region ${REGION} \
---template-body file:///work/cloudformation/stack.yml
+--template-body file:///work/cloudformation/stack.yml \
+--parameters ParameterKey=BastionAllowedIP,ParameterValue=${MY_IP} \
+--capabilities CAPABILITY_IAM
 
 generate_bastion_key: ## Deploy all infrastructure with Cloudformation and deploy site
 	@docker run ${DOCKER_OPTIONS} ccliver/awscli aws ec2 create-key-pair --region ${REGION} --key-name bastion-key | jq -r .KeyMaterial > id_rsa
@@ -34,6 +36,9 @@ delete_stack: ## Update deployed stack
 validate_template: ## Validate template syntax
 	@docker run ${DOCKER_OPTIONS} ccliver/awscli aws cloudformation validate-template \
 	--region ${REGION} --template-body file:///work/cloudformation/stack.yml
+
+ssh_bastion: ## SSH to the bastion host
+	@ssh -i id_rsa ec2-user@$(shell aws cloudformation describe-stacks --stack-name ${STACK_NAME} | jq -r .Stacks[0].Outputs[0].OutputValue)
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
