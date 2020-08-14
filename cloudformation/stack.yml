@@ -6,7 +6,7 @@ Parameters:
   InstanceType:
     Type: String
     Description: The instance type for app servers
-    Default: t2.medium
+    Default: t3.small
 
   AMI:
     Type: String
@@ -232,8 +232,8 @@ Resources:
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
+          FromPort: 80
+          ToPort: 80
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: -1
@@ -253,6 +253,16 @@ Resources:
         - !Ref PublicOne
         - !Ref PublicTwo
       Type: application
+
+  HTTPlistener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: "HTTP"
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -304,6 +314,23 @@ Resources:
       Roles:
       - !Ref AppRole
 
+  AppInstanceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: App instance security group
+      GroupName: app-instance-sg
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 10.0.0.0/16
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
   LaunchConfig: 
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties: 
@@ -313,6 +340,15 @@ Resources:
         Ref: InstanceType
       IamInstanceProfile: 
         Ref: AppInstanceProfile
+      SecurityGroups:
+        - !Ref AppInstanceSG
+      UserData: !Base64 |
+        #!/bin/bash
+        yum -y update
+        yum -y install httpd
+        service httpd start
+        cd /var/www/html
+        echo 'it works! Udagram, Udacity' > index.html
 
   ASG:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -321,8 +357,8 @@ Resources:
         - !Ref PrivateOne
         - !Ref PrivateTwo
       LaunchConfigurationName: !Ref LaunchConfig
-      MinSize: 1
-      MaxSize: 3
+      MinSize: 4
+      MaxSize: 8
       TargetGroupARNs:
         - !Ref TargetGroup
 
@@ -330,3 +366,6 @@ Resources:
 Outputs:
   BastionIP:
     Value: !GetAtt Bastion.PublicIp
+
+  LBName:
+    Value: !GetAtt ALB.DNSName
