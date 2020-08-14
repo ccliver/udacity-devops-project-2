@@ -31,7 +31,7 @@ make lb_url
 ### Full usage
 ```bash
 $ make
-generate_bastion_key           Deploy all infrastructure with Cloudformation and deploy site
+generate_bastion_key           Create an SSH key to get on the bastion
 build_stack                    Deploy all infrastructure with Cloudformation and deploy site
 update_stack                   Update deployed stack
 show_stacks                    Update deployed stack

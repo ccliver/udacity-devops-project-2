@@ -16,7 +16,7 @@ AWS_CLI_OPTIONS := --stack-name ${STACK_NAME} \
 --parameters ParameterKey=BastionAllowedIP,ParameterValue=${MY_IP} \
 --capabilities CAPABILITY_IAM
 
-generate_bastion_key: ## Deploy all infrastructure with Cloudformation and deploy site
+generate_bastion_key: ## Create an SSH key to get on the bastion
 	@docker run ${DOCKER_OPTIONS} ccliver/awscli aws ec2 create-key-pair --region ${REGION} --key-name bastion-key | jq -r .KeyMaterial > id_rsa
 	@chmod 400 id_rsa
 
