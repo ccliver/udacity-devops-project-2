@@ -21,5 +21,22 @@ Your company is creating an Instagram clone called Udagram. Developers pushed th
 
 ### Build the environment
 ```bash
+# Generate the bastion key and build the app stack
 make generate_bastion_key build_stack
+
+# Output the DNS name of the load balancer
+make lb_url
+```
+
+### Full usage
+```bash
+$ make
+generate_bastion_key           Deploy all infrastructure with Cloudformation and deploy site
+build_stack                    Deploy all infrastructure with Cloudformation and deploy site
+update_stack                   Update deployed stack
+show_stacks                    Update deployed stack
+delete_stack                   Update deployed stack
+validate_template              Validate template syntax
+ssh_bastion                    SSH to the bastion host
+lb_url                         Output the load balancer url
 ```
