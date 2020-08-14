@@ -1,176 +1,19 @@
 Parameters:
-  BastionAllowedIP:
-    Type: String
-    Description: The CIDR that will be granted SSH access to the bastion
+  # Leaving this wide open to help meet the external parameters requirement of the project.
+  # The cli doesn't accept both parameter files and parameter variables.
+  #BastionAllowedIP:
+  #  Type: String
+  #  Description: The CIDR that will be granted SSH access to the bastion
 
   InstanceType:
     Type: String
     Description: The instance type for app servers
-    Default: t3.small
 
   AMI:
     Type: String
     Description: App instance AMI
-    Default: ami-02354e95b39ca8dec # Amazon Linux 2 us-east-1
 
 Resources:
-  #
-  # VPC
-  #
-  VPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: 10.0.0.0/16
-      EnableDnsSupport: true
-      EnableDnsHostnames: false
-
-  PublicOne:
-    Type: AWS::EC2::Subnet
-    Properties: 
-      VpcId: !Ref VPC
-      CidrBlock: 10.0.0.0/24
-      AvailabilityZone:
-        Fn::Select:
-          - 0
-          - Fn::GetAZs: ""
-      Tags:
-      - Key: Name
-        Value: PublicOne
-
-  PublicTwo:
-    Type: AWS::EC2::Subnet
-    Properties: 
-      VpcId: !Ref VPC
-      CidrBlock: 10.0.1.0/24
-      AvailabilityZone:
-        Fn::Select:
-          - 1
-          - Fn::GetAZs: ""
-      Tags:
-      - Key: Name
-        Value: PublicTwo
-
-  PrivateOne:
-    Type: AWS::EC2::Subnet
-    Properties: 
-      VpcId: !Ref VPC
-      CidrBlock: 10.0.2.0/24
-      AvailabilityZone:
-        Fn::Select:
-          - 0
-          - Fn::GetAZs: ""
-      Tags:
-      - Key: Name
-        Value: PrivateOne
-
-  PrivateTwo:
-    Type: AWS::EC2::Subnet
-    Properties: 
-      VpcId: !Ref VPC
-      CidrBlock: 10.0.3.0/24
-      AvailabilityZone:
-        Fn::Select:
-          - 1
-          - Fn::GetAZs: ""
-      Tags:
-      - Key: Name
-        Value: PrivateTwo
-
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
-
-  InternetGatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      InternetGatewayId: !Ref InternetGateway
-      VpcId: !Ref VPC
-
-  NATIP1:
-    Type: AWS::EC2::EIP
-
-  NATIP2:
-    Type: AWS::EC2::EIP
-
-  NATGateway1:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId:
-        Fn::GetAtt:
-          - NATIP1
-          - AllocationId
-      SubnetId: !Ref PublicOne
-
-  NATGateway2:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId:
-        Fn::GetAtt:
-          - NATIP2
-          - AllocationId
-      SubnetId: !Ref PublicTwo
-
-  RouteTablePublic:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-
-  RouteTablePrivateOne:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-
-  RouteTablePrivateTwo:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-
-  InternetRoute:
-    Type: AWS::EC2::Route
-    DependsOn: InternetGateway
-    Properties:
-      RouteTableId: !Ref RouteTablePublic
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
-
-  NATRoute1:
-    Type: AWS::EC2::Route
-    DependsOn: NATGateway1
-    Properties:
-      RouteTableId: !Ref RouteTablePrivateOne
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NATGateway1
-
-  NATRoute2:
-    Type: AWS::EC2::Route
-    DependsOn: NATGateway2
-    Properties:
-      RouteTableId: !Ref RouteTablePrivateTwo
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NATGateway2
-
-  InternetRouteAssociation1:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicOne
-      RouteTableId: !Ref RouteTablePublic
-
-  InternetRouteAssociation2:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicTwo
-      RouteTableId: !Ref RouteTablePublic
-
-  NATRouteAssociation1:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PrivateOne
-      RouteTableId: !Ref RouteTablePrivateOne
-
-  NATRouteAssociation2:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PrivateTwo
-      RouteTableId: !Ref RouteTablePrivateTwo
 
   #
   # Bastion
@@ -180,12 +23,14 @@ Resources:
     Properties:
       GroupDescription: Bastion instance security group
       GroupName: bastion-sg
-      VpcId: !Ref VPC
+      VpcId:
+        Fn::ImportValue: VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: !Join ['', [!Ref BastionAllowedIP, '/32']]
+          #CidrIp: !Join ['', [!Ref BastionAllowedIP, '/32']]
+          CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: -1
           FromPort: -1
@@ -203,7 +48,8 @@ Resources:
           DeviceIndex: 0
           GroupSet:
             - Ref: "BastionSG"
-          SubnetId: !Ref PublicOne
+          SubnetId:
+            Fn::ImportValue: PublicSubnetOne
       Tags:
         - Key: Name
           Value: bastion
@@ -214,7 +60,7 @@ Resources:
   AppBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub 'udacity-project-2-${AWS::Region}'
+      BucketName: !Sub 'udacity-project-2-app-${AWS::Region}'
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -229,7 +75,8 @@ Resources:
     Properties:
       GroupDescription: ALB security group
       GroupName: lb-sg
-      VpcId: !Ref VPC
+      VpcId:
+        Fn::ImportValue: VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -250,8 +97,8 @@ Resources:
       SecurityGroups:
         - !Ref ALBSG
       Subnets:
-        - !Ref PublicOne
-        - !Ref PublicTwo
+        - Fn::ImportValue: PublicSubnetOne
+        - Fn::ImportValue: PublicSubnetTwo
       Type: application
 
   HTTPlistener:
@@ -272,7 +119,8 @@ Resources:
       Protocol: HTTP
       HealthCheckPort: 80
       HealthCheckProtocol: HTTP
-      VpcId: !Ref VPC
+      VpcId:
+        Fn::ImportValue: VPCID
 
   #
   # ASG
@@ -319,7 +167,8 @@ Resources:
     Properties:
       GroupDescription: App instance security group
       GroupName: app-instance-sg
-      VpcId: !Ref VPC
+      VpcId:
+        Fn::ImportValue: VPCID
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -342,6 +191,12 @@ Resources:
         Ref: AppInstanceProfile
       SecurityGroups:
         - !Ref AppInstanceSG
+      BlockDeviceMappings: 
+        - DeviceName: /dev/sda1
+          Ebs: 
+            VolumeSize: 10
+            VolumeType: gp2
+            DeleteOnTermination: true
       UserData: !Base64 |
         #!/bin/bash
         yum -y update
@@ -354,8 +209,8 @@ Resources:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
-        - !Ref PrivateOne
-        - !Ref PrivateTwo
+        - Fn::ImportValue: PrivateSubnetOne
+        - Fn::ImportValue: PrivateSubnetTwo
       LaunchConfigurationName: !Ref LaunchConfig
       MinSize: 4
       MaxSize: 8

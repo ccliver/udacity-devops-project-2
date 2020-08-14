@@ -1,0 +1,10 @@
+[
+    {
+        "ParameterKey": "InstanceType",
+        "ParameterValue": "t3.small"
+    },
+    {
+        "ParameterKey": "AMI",
+        "ParameterValue": "ami-02354e95b39ca8dec"
+    }
+]
