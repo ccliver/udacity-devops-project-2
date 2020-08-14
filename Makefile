@@ -38,7 +38,10 @@ validate_template: ## Validate template syntax
 	--region ${REGION} --template-body file:///work/cloudformation/stack.yml
 
 ssh_bastion: ## SSH to the bastion host
-	@ssh -i id_rsa ec2-user@$(shell aws cloudformation describe-stacks --stack-name ${STACK_NAME} | jq -r .Stacks[0].Outputs[0].OutputValue)
+	@ssh -i id_rsa ec2-user@$(shell aws cloudformation describe-stacks --stack-name ${STACK_NAME} | jq -r .Stacks[0].Outputs[1].OutputValue)
+
+lb_url: ## Output the load balancer url
+	@echo "http://$(shell aws cloudformation describe-stacks --stack-name ${STACK_NAME} | jq -r .Stacks[0].Outputs[0].OutputValue)"
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
