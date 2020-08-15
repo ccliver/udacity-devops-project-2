@@ -10,7 +10,6 @@ Your company is creating an Instagram clone called Udagram. Developers pushed th
   - 4 servers across 2 AZ's in autoscaling groups
   - 2 vCPUs per server 4G of RAM, and 10G disks running Ubuntu 18
   - One step build/destroy process
-  - Secure secret storage
 
 
 ---
